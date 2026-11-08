@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supremo Tribunal Meta City - Emissão de Documentos</title>
+    <!-- Tailwind CSS para interface responsiva moderna -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts para tipografia oficial e assinatura elegante -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cinzel:wght@500;700;800&family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;600;700;800&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <!-- html2canvas via CDNJS para conversão do HTML em elemento Canvas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Estilização da Folha Oficial baseada nas Imagens Enviadas - Ajustado para Proporção 1414x2000px Real */
+        .document-canvas {
+            background-color: #faf8f5;
+            position: relative;
+            background-size: 100% 100%;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: all 0.3s ease;
+        }
+        
+        /* Moldura de borda dupla dourada e preta (usada apenas nos fundos gerados por código) */
+        .gold-frame {
+            border: 2px solid #000000;
+            outline: 4px solid #bba15c;
+            outline-offset: -6px;
+            box-shadow: inset 0 0 20px rgba(187, 161, 92, 0.15);
+        }
+
+        .font-cinzel {
+            font-family: 'Cinzel', serif;
+        }
+        .font-montserrat {
+            font-family: 'Montserrat', sans-serif;
+        }
+        .font-merriweather {
+            font-family: 'Merriweather', serif;
+        }
+        .signature-font {
+            font-family: 'Alex Brush', cursive;
+        }
+
+        /* Marca d'água de fundo padrão (ocultada quando imagem real é usada) */
+        .document-watermark {
+            position: absolute;
+            top: 52%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-25deg);
+            font-family: 'Cinzel', serif;
+            font-size: 4.5rem;
+            font-weight: 800;
+            color: rgba(187, 161, 92, 0.04);
+            pointer-events: none;
+            white-space: nowrap;
+            user-select: none;
+            z-index: 0;
+            letter-spacing: 0.4rem;
+        }
+
+        /* Elemento Dinâmico: Faixa de Canto Superior Esquerdo */
+        .corner-ribbon {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 160px;
+            height: 160px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Linhas fluidas de fundo cinza que compõem o background externo */
+        .waves-bg {
+            background-color: #0f172a;
+            background-image: radial-gradient(at 0% 0%, rgba(30, 41, 59, 0.5) 0, transparent 50%), radial-gradient(at 100% 100%, rgba(15, 23, 42, 0.8) 0, transparent 50%);
+        }
+
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #area-documento, #area-documento * {
+                visibility: visible;
+            }
+            #area-documento {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 210mm;
+                height: 297mm;
+                box-shadow: none;
+                padding: 3rem !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="waves-bg min-h-screen text-slate-100 flex flex-col font-sans">
+
+    <!-- Protetor de Acesso de Segurança (Modal Inicial Total) -->
+    <div id="gatekeeper-lock" class="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4 backdrop-blur-lg no-print">
+        <div class="max-w-md w-full bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-2xl text-center space-y-4">
+            <div class="w-16 h-16 bg-amber-500/10 border border-amber-500/30 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-2 animate-pulse">
+                <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+            </div>
+            <h2 class="text-xl font-bold tracking-wider font-cinzel text-amber-400">ACESSO RESTRITO</h2>
+            <p class="text-xs text-slate-400 font-sans leading-relaxed">Este portal faz parte da rede operacional do Supremo Tribunal Meta City. Insira a chave criptográfica de homologação para habilitar a emissão de atos judiciais.</p>
+            
+            <div class="pt-2">
+                <input type="password" id="gatekeeper-password" placeholder="••••••••" class="w-full text-center bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-base tracking-widest text-slate-200 focus:outline-none focus:border-amber-500 transition-colors font-mono">
+            </div>
+            
+            <div id="gatekeeper-error" class="hidden text-xs text-red-400 font-mono bg-red-950/40 border border-red-900/50 p-2 rounded-lg">
+                Senha de verificação incorreta. Acesso negado.
+            </div>
+
+            <button type="button" id="gatekeeper-btn" class="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-bold py-2 rounded-lg text-xs uppercase tracking-widest transition-all">
+                Autenticar Credenciais
+            </button>
+        </div>
+    </div>
+
+    <!-- Interface Principal do Aplicativo (Inicialmente Oculta por Opacidade no Fluxo de Inicialização) -->
+    <div id="app-content" class="invisible flex flex-col min-h-screen w-full">
+        <!-- Cabeçalho Administrativo -->
+        <header class="bg-slate-950/80 border-b border-slate-800 p-4 shadow-xl backdrop-blur-md no-print">
+            <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center justify-center text-amber-500">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-bold tracking-wider text-amber-400 font-cinzel">SUPREMO TRIBUNAL META CITY</h1>
+                        <p class="text-xs text-slate-400 font-mono">Painel Administrativo Operacional Ativo</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span class="bg-slate-900 border border-slate-700 px-3 py-1 rounded-full text-xs font-mono text-emerald-400">
+                        Sistema Ativo • 08/11/2026
+                    </span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Espaço Operacional -->
+        <main class="flex-1 max-w-[1450px] mx-auto w-full p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            <!-- Formulário e Configurações (Esquerda) -->
+            <section class="lg:col-span-4 bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-2xl backdrop-blur-md space-y-4 no-print flex flex-col justify-between">
+                <div class="space-y-4">
+                    <h2 class="text-sm font-bold uppercase tracking-widest text-slate-400 border-b border-slate-800 pb-2 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                        </svg>
+                        Controle Operacional
+                    </h2>
+
+                    <!-- Advogado Legalizador -->
+                    <div>
+                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Advogado Legalizador Responsável</label>
+                        <input type="text" id="advogado-nome" value="Luan Laveau Lemos" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-amber-500 transition-colors font-mono">
+                    </div>
+
+                    <!-- Seletor do Atos -->
+                    <div>
+                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Escolha o Tipo de Documento</label>
+                        <select id="servico-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-amber-500 transition-colors cursor-pointer font-medium">
+                            <option value="nascimento">Certidão de Nascimento</option>
+                            <option value="casamento">Certidão de Casamento</option>
+                            <option value="adocao">Certificado de Adoção</option>
+                            <option value="cnpj">CNPJ (Registro Corporativo)</option>
+                            <option value="porte_arma">Porte de Arma Leve</option>
+                            <option value="patente_nome">Patente de Nome</option>
+                        </select>
+                    </div>
+
+                    <!-- Upload de Papel Timbrado Personalizado por Categoria -->
+                    <div class="bg-slate-950/60 p-3 rounded-lg border border-slate-800 space-y-2">
+                        <label class="block text-[11px] font-bold uppercase tracking-wider text-amber-400">Upar Fundo Padrão do Tipo Selecionado</label>
+                        <input type="file" id="fundo-upload" accept="image/*" class="w-full text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-amber-600 file:text-slate-950 hover:file:bg-amber-500 file:cursor-pointer cursor-pointer">
+                        <p class="text-[10px] text-slate-500 font-sans leading-tight">Ao fazer o upload, esta imagem específica se tornará o fundo padrão permanente apenas da aba selecionada acima.</p>
+                    </div>
+
+                    <!-- Área de Texto Grande -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-400">Bloco de Dados do Cidadão / Empresa</label>
+                            <button type="button" id="btn-exemplo" class="text-xs text-amber-400 hover:underline">Inserir Dados de Teste</button>
+                        </div>
+                        <textarea id="dados-input" rows="5" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono text-emerald-400 placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors resize-y" placeholder="Cole as chaves e valores aqui..."></textarea>
+                    </div>
+
+                    <!-- Painel de identificação inteligente -->
+                    <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                        <span class="text-[10px] font-mono text-slate-500 block uppercase tracking-wider mb-1">Campos mapeados dinamicamente:</span>
+                        <div id="campos-detectados" class="text-[10px] text-slate-300 grid grid-cols-2 gap-1 max-h-20 overflow-y-auto font-mono"></div>
+                    </div>
+
+                    <div id="status-notificacao" class="hidden text-xs rounded-lg p-2.5 font-medium"></div>
+
+                    <button type="button" id="btn-enviar" class="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-bold py-2.5 rounded-lg shadow-md transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-widest">
+                        Gerar Documento Oficial
+                    </button>
+                </div>
+                
+                <!-- Marca de Autoria no Canto Esquerdo do Rodapé Administrativo -->
+                <div class="pt-4 border-t border-slate-800 mt-2 text-left w-full pl-1">
+                    <span class="text-[10px] font-mono text-slate-500 tracking-wider">Criado por Isadora Rodrigues</span>
+                </div>
+            </section>
+
+            <!-- Folha Impressa Profissional (Direita) -->
+            <section class="lg:col-span-8 w-full flex justify-center overflow-x-auto p-1">
+                <div id="area-documento" class="document-canvas gold-frame text-slate-900 p-8 pt-4 w-full max-w-[707px] min-h-[1000px] flex flex-col justify-between shadow-2xl relative select-none mx-auto bg-white">
+                    
+                    <!-- Faixa de Canto Esquerdo Superior (Gerada por código para fallback) -->
+                    <div id="bloco-faixa-padrao" class="corner-ribbon">
+                        <svg width="160" height="160" viewBox="0 0 160 160" fill="none">
+                            <path d="M0 0 L110 0 L0 110 Z" fill="rgba(0,0,0,0.15)"/>
+                            <path d="M0 0 L100 0 L0 100 Z" fill="#1e1e1e"/>
+                            <path d="M0 100 L12 100 L0 112 Z" fill="#0a0a0a"/>
+                            <line x1="97" y1="0" x2="0" y2="97" stroke="#bba15c" stroke-width="4"/>
+                        </svg>
+                    </div>
+
+                    <!-- Marca d'água de Fallback -->
+                    <div id="bloco-marca-agua" class="document-watermark font-cinzel">SUPREMO TRIBUNAL</div>
+
+                    <!-- Cabeçalho Institucional -->
+                    <div id="bloco-cabecalho-padrao" class="text-center relative z-10 space-y-1.5 mt-2 flex flex-col items-center">
+                        <div class="w-16 h-16 text-black opacity-90">
+                            <svg viewBox="0 0 100 100" fill="none" stroke="currentColor">
+                                <circle cx="50" cy="50" r="44" stroke-width="2" stroke-dasharray="3 1 1 1"/>
+                                <circle cx="50" cy="50" r="40" stroke-width="1"/>
+                                <circle cx="50" cy="50" r="37" stroke-width="1" stroke-dasharray="4 2"/>
+                                <path d="M50 25 v46 M32 38 h36 M38 52 l-6-14 l6-14 M62 52 l-6-14 l6-14 M44 71 h12" stroke-width="1.5" stroke-linecap="round"/>
+                                <path id="textPath" d="M22 50 a28 28 0 1 1 56 0 a28 28 0 1 1 -56 0" fill="none"/>
+                                <text font-size="6" font-weight="bold" fill="currentColor" tracking="2">
+                                    <textPath href="#textPath" startOffset="0">SUPREMO TRIBUNAL • META CITY • JUSTITIA •</textPath>
+                                </text>
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-bold tracking-wide font-cinzel text-[#9c803c] drop-shadow-sm uppercase" id="titulo-tribunal-cabecalho">Supremo Tribunal Meta City</h3>
+                    </div>
+
+                    <!-- Container Agrupador de Conteúdo, Metadados e Assinatura Alinhada -->
+                    <div class="relative z-10 flex-1 flex flex-col justify-start space-y-4 mt-4">
+                        <!-- Espaço de Conteúdo Dinâmico -->
+                        <div id="corpo-texto-dinamico" class="font-merriweather text-sm text-justify leading-relaxed text-slate-800 px-6 pt-1">
+                            <!-- Preenchido dinamicamente via JS -->
+                        </div>
+
+                        <!-- Bloco Adicional Dinâmico 1: Assinaturas de Cônjuges (Exclusivo para Casamento) -->
+                        <div id="bloco-assinaturas-conjuges" class="hidden px-6 grid grid-cols-2 gap-6 pt-1 pb-1">
+                            <div class="text-center flex flex-col items-center">
+                                <div class="w-full h-8 flex items-end justify-center pb-0.5 border-b border-slate-300">
+                                    <span id="doc-sig-conjuge1" class="signature-font text-2xl text-slate-700/80 italic select-none"></span>
+                                </div>
+                                <p class="text-[9px] uppercase tracking-wider font-montserrat font-bold text-slate-500 mt-1" id="lbl-conjuge1">Cônjuge Um</p>
+                            </div>
+                            <div class="text-center flex flex-col items-center">
+                                <div class="w-full h-8 flex items-end justify-center pb-0.5 border-b border-slate-300">
+                                    <span id="doc-sig-conjuge2" class="signature-font text-2xl text-slate-700/80 italic select-none"></span>
+                                </div>
+                                <p class="text-[9px] uppercase tracking-wider font-montserrat font-bold text-slate-500 mt-1" id="lbl-conjuge2">Cônjuge Dois</p>
+                            </div>
+                        </div>
+
+                        <!-- Bloco Adicional Dinâmico 2: Assinatura do Magistrado Proferidor (Exclusivo para Adoção) -->
+                        <div id="bloco-assinatura-magistrado" class="hidden px-6 flex justify-start pt-1 pb-1">
+                            <div class="text-center flex flex-col items-center w-64">
+                                <div class="w-full h-8 flex items-end justify-center pb-0.5 border-b border-slate-300">
+                                    <span id="doc-sig-magistrado" class="signature-font text-2xl text-slate-700/80 italic select-none"></span>
+                                </div>
+                                <p class="text-[9px] uppercase tracking-wider font-montserrat font-bold text-slate-500 mt-1" id="lbl-magistrado">Magistrado Proferidor</p>
+                            </div>
+                        </div>
+
+                        <!-- Bloco de Dados Técnicos -->
+                        <div class="px-6 pt-3 border-t border-slate-200/60 font-mono text-[11px] text-slate-500 space-y-1">
+                            <p class="font-bold text-slate-700 font-montserrat uppercase text-[10px] tracking-wider mb-1" id="rodape-governo-texto">Government Federal Meta City's</p>
+                            <p><strong>Emissão:</strong> <span id="doc-data-extensa">08 de Novembro de 2026</span></p>
+                            <p><strong>Registro:</strong> <span id="doc-hora">13:36 hrs</span></p>
+                            <p class="text-[10px] text-slate-400/80">Hash: <span id="doc-hash">MC-8839-2026</span></p>
+                        </div>
+
+                        <!-- Bloco de Assinatura Deslocado -->
+                        <div class="text-left flex flex-col items-start justify-start space-y-0.5 pt-2 mt-12 pr-6 pl-6">
+                            <div class="w-72 relative min-h-[44px] flex items-end justify-start pb-1">
+                                <span id="doc-signature-field" class="signature-font text-4xl text-blue-900 tracking-wide whitespace-nowrap select-none"></span>
+                            </div>
+                            <p class="text-[11px] font-bold text-slate-800 font-montserrat border-t border-slate-400/60 pt-1 w-64 text-left" id="doc-nome-advogado"></p>
+                            <p class="text-[9px] text-slate-400 uppercase tracking-widest text-left pl-1">Advogado Legalizador</p>
+                        </div>
+                    </div>
+
+                    <!-- Seção de Rodapé Final da Folha (Totalmente Limpo) -->
+                    <div class="relative z-10 hidden"></div>
+
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Banco de Dados e Script de Automação -->
+    <script>
+        // Sistema Gatekeeper de Proteção por Senha
+        const gatekeeperLock = document.getElementById('gatekeeper-lock');
+        const gatekeeperPassword = document.getElementById('gatekeeper-password');
+        const gatekeeperBtn = document.getElementById('gatekeeper-btn');
+        const gatekeeperError = document.getElementById('gatekeeper-error');
+        const appContent = document.getElementById('app-content');
+
+        function verificarAcesso() {
+            if (gatekeeperPassword.value === 'meta26') {
+                gatekeeperLock.classList.add('hidden');
+                appContent.classList.remove('invisible');
+                exibirAlerta("Acesso Homologado. Sistema liberado.", "bg-emerald-950 text-emerald-400 border border-emerald-900");
+            } else {
+                gatekeeperError.classList.remove('hidden');
+                gatekeeperPassword.value = '';
+                gatekeeperPassword.focus();
+            }
+        }
+
+        gatekeeperBtn.addEventListener('click', verificarAcesso);
+        gatekeeperPassword.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') verificarAcesso();
+        });
+
+        // Compartimentos de memória locais isolados por tipo de serviço para guardar imagens base (Base64 local)
+        const fundosCustomizadosPorServico = {
+            nascimento: '',
+            casamento:  '',
+            adocao:     '',
+            cnpj:       '',
+            porte_arma: '',
+            patente_nome:''
+        };
+
+        const exemplosDados = {
+            nascimento: `Nome do Registrado: Arthur Pendragon Silva\nData de Nascimento: 14/05/2021\nCidade de Nascimento: Distrito Leste de Meta-City\nPai: Robert Baratheon Silva\nMãe: Cersei Lannister Silva\nAvós Paternos: Steffon Silva\nAvós Maternos: Tywin Lannister\nMatrícula do Registro: 104532.01.55.2021.1.00042.11`,
+            casamento: `Cônjuge Um: Carlos Eduardo Albuquerque\nCônjuge Dois: Mariana Souzamar Rocha\nData da Celebração: 22/10/2025\nRegime de Bens: Comunhão Parcial de Bens\nTestemunhas Oficiais: Paulo Roberto Rocha, Aline Meireles Albuquerque\nCartório de Origem: Ofício de Notas da Região Metropolitana`,
+            adocao: `Adotante Responsável: Clarice Lispector Novaes\nNome Adotado: Lucas Gabriel Lispector Novaes\nNome de Batismo Anterior: Lucas Gabriel dos Santos\nData da Sentença Judicial: 08/03/2026\nMagistrado Proferidor: Dr. Honório de Balzac\nNúmero do Processo Mãe: 0041233-88.2025.8.19.0001`,
+            cnpj: `Razão Social: Meta-City Cybernetics Desenvolvimento de Software Ltda\nNome Fantasia: MetaCyber Tech\nData de Abertura Oficial: 15/01/2026\nInscrição CNPJ: 44.512.909/0001-88\nAtividade Econômica Principal: Inteligência Artificial e Automação Industrial\nCapital Social Declarado: R$ 750.000,00\nEndereço: Av. Tecnológica, nº 2046, Silicon District\nTelefone: (11) 90462-8811\nProprietário: Elon Musk Silva\nSócios: Tony Stark Lemos, Bruce Wayne Rocha\nPorte da Empresa: Grande Porte (Corporativo)`,
+            porte_arma: `Nome do Titular: Subtenente Marcus Viana Fontes\nDocumento CPF: 089.443.112-02\nTipo de Armamento: Pistola Semiautomática Leve\nCalibre Permitido: M-19\nAntecedentes Criminais: ficha limpa`,
+            patente_nome: `Nome da Marca Patenteada: ARCHANGEL PROTOCOL\nTitular do Direito Intelectual: Gabriel Belmont Indústrias Aeroespaciais\nNúmero do Processo de Depósito: INPI-90432112\nData de Concessão Legal: 02/02/2026\nPrazo de Vigência da Protection: 10 Anos de exclusividade institutional\nBeneficiados: John Doe Mac, Sarah Connor Belmont, Kaelen Croft Wayne, Elara Vance Smith, Marcus Aurelius Silva, Diana Prince Troy, Arthur Curry Atlantis`
+        };
+
+        const servicoSelect = document.getElementById('servico-select');
+        const fundoUpload = document.getElementById('fundo-upload');
+        const dadosInput = document.getElementById('dados-input');
+        const btnExemplo = document.getElementById('btn-exemplo');
+        const btnEnviar = document.getElementById('btn-enviar');
+        const camposDetectadosDiv = document.getElementById('campos-detectados');
+        const statusNotificacao = document.getElementById('status-notificacao');
+        const areaDocumento = document.getElementById('area-documento');
+
+        function mapearTextoParaDicionario(texto) {
+            const lines = textFixDate(texto).split('\n');
+            const dicionario = {};
+            lines.forEach(linha => {
+                const divisor = Math.max(linha.indexOf(':'), 0);
+                if (divisor > 0) {
+                    const chave = inlineKey(linha, divisor);
+                    const valor = inlineValue(linha, divisor);
+                    if (valueValid(valor)) dicionario[chave] = valor;
+                }
+            });
+            return dicionario;
+        }
+
+        function textFixDate(rawTxt) {
+            if (servicoSelect.value !== 'porte_arma') return rawTxt;
+            
+            const hoje = new Date();
+            const expira = new Date(hoje.getTime() + (30 * 24 * 60 * 60 * 1000));
+            const dataFormatada = expira.toLocaleDateString('pt-BR');
+            
+            let lines = rawTxt.split('\n');
+            let hasValidity = false;
+            
+            lines = lines.map(line => {
+                if (line.toLowerCase().startsWith('validade_da_licenca') || line.toLowerCase().startsWith('validade da licenca')) {
+                    hasValidity = true;
+                    return `Validade da Licença: ${dataFormatada}`;
+                }
+                return line;
+            });
+            
+            if (!hasValidity) {
+                lines.push(`Validade da Licença: ${dataFormatada}`);
+            }
+            return lines.join('\n');
+        }
+        
+        function inlineKey(str, idx) {
+            return str.substring(0, idx).trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_');
+        }
+        
+        function inlineValue(str, idx) {
+            return str.substring(idx + 1).trim();
+        }
+
+        function valueValid(val) {
+            return val && val.length > 0;
+        }
+
+        function atualizarPainelFeedback() {
+            const dados = mapearTextoParaDicionario(dadosInput.value);
+            camposDetectadosDiv.innerHTML = '';
+            const chaves = Object.keys(dados);
+            if (chaves.length === 0) {
+                camposDetectadosDiv.innerHTML = '<span class="text-slate-600 col-span-2 italic">Nenhum campo estruturado...</span>';
+                return;
+            }
+            chaves.forEach(ch => {
+                const caixa = document.createElement('div');
+                caixa.className = 'bg-slate-950 px-2 py-0.5 rounded border border-slate-800 text-[10px] truncate';
+                caixa.innerHTML = `<span class="text-amber-500 font-bold">${ch}:</span> ${dados[ch]}`;
+                camposDetectadosDiv.appendChild(caixa);
+            });
+        }
+
+        function exibirAlerta(msg, classe) {
+            statusNotificacao.className = `text-xs rounded-lg p-2.5 font-medium block ${classe}`;
+            statusNotificacao.innerText = msg;
+            setTimeout(() => { statusNotificacao.classList.add("hidden"); }, 5000);
+        }
+
+        function aplicarFundoEMargens() {
+            const servico = servicoSelect.value;
+            const blocoFaixa = document.getElementById('bloco-faixa-padrao');
+            const blocoCabecalho = document.getElementById('bloco-cabecalho-padrao');
+            const blocoMarcaAgua = document.getElementById('bloco-marca-agua');
+
+            if (fundosCustomizadosPorServico[servico]) {
+                areaDocumento.style.backgroundImage = `url('${fundosCustomizadosPorServico[servico]}')`;
+                areaDocumento.className = "document-canvas text-slate-900 p-8 pt-32 w-full max-w-[707px] min-h-[1000px] flex flex-col justify-between shadow-2xl relative select-none mx-auto bg-white";
+                
+                blocoFaixa.style.display = 'none';
+                blocoCabecalho.style.opacity = '0';
+                blocoMarcaAgua.style.display = 'none';
+            } else {
+                areaDocumento.style.backgroundImage = "none";
+                areaDocumento.style.backgroundColor = "#faf8f5";
+                areaDocumento.className = "document-canvas gold-frame text-slate-900 p-8 pt-4 w-full max-w-[707px] min-h-[1000px] flex flex-col justify-between shadow-2xl relative select-none mx-auto bg-white";
+                
+                blocoFaixa.style.display = 'block';
+                blocoCabecalho.style.opacity = '1';
+                blocoMarcaAgua.style.display = 'block';
+            }
+        }
+
+        function compilarDocumentoFinal() {
+            const servico = servicoSelect.value;
+            const dados = mapearTextoParaDicionario(dadosInput.value);
+            const caixaTexto = document.getElementById('corpo-texto-dinamico');
+            const tituloCabecalho = document.getElementById('titulo-tribunal-cabecalho');
+            const rodapeGoverno = document.getElementById('rodape-governo-texto');
+            const blocoConjuges = document.getElementById('bloco-assinaturas-conjuges');
+            const blocoMagistrado = document.getElementById('bloco-assinatura-magistrado');
+
+            if (Object.keys(dados).length === 0) {
+                exibirAlerta("Erro: O campo grande de dados está vazio ou fora do padrão.", "bg-red-950 text-red-400 border border-red-900");
+                return;
+            }
+
+            const tempo = new Date();
+            const nomeAdvogado = document.getElementById('advogado-nome').value.trim() || "Luan Laveau Lemos";
+            document.getElementById('doc-nome-advogado').innerText = nomeAdvogado;
+            document.getElementById('doc-signature-field').innerText = nomeAdvogado;
+            document.getElementById('doc-hora').innerText = tempo.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) + " hrs";
+            document.getElementById('doc-hash').innerText = 'MC.' + Math.random().toString(36).substring(2, 7).toUpperCase() + '.' + tempo.getFullYear();
+
+            aplicarFundoEMargens();
+
+            tituloCabecalho.innerText = "Supremo Tribunal Meta City";
+            rodapeGoverno.innerText = "Governo Federal Meta City's";
+
+            if (servico === 'casamento') {
+                blocoConjuges.classList.remove('hidden');
+                document.getElementById('doc-sig-conjuge1').innerText = dados.conjuge_um || '';
+                document.getElementById('doc-sig-conjuge2').innerText = dados.conjuge_dois || '';
+                document.getElementById('lbl-conjuge1').innerText = dados.conjuge_um ? `Assinatura: ${dados.conjuge_um}` : 'Cônjuge Um';
+                document.getElementById('lbl-conjuge2').innerText = dados.conjuge_dois ? `Assinatura: ${dados.conjuge_dois}` : 'Cônjuge Dois';
+            } else {
+                blocoConjuges.classList.add('hidden');
+            }
+
+            if (servico === 'adocao') {
+                blocoMagistrado.classList.remove('hidden');
+                document.getElementById('doc-sig-magistrado').innerText = dados.magistrado_proferidor || '';
+                document.getElementById('lbl-magistrado').innerText = dados.magistrado_proferidor ? `Assinatura: ${dados.magistrado_proferidor}` : 'Magistrado Proferidor';
+            } else {
+                blocoMagistrado.classList.add('hidden');
+            }
+
+            let htmlResultado = '';
+            switch(servico) {
+                case 'nascimento':
+                    htmlResultado = `
+                        <h4 class="text-center font-cinzel font-bold text-base text-slate-900 tracking-wider mb-3">CERTIDÃO DE NASCIMENTO</h4>
+                        <p class="indent-8 mb-2">CERTIFICA-SE, nos termos das atribuições constitucionais delegadas ao Supremo Tribunal Meta City, que revendo os livros de assentamento de Registro Civil de Pessoas Naturais, verificou-se o registro de nascimento de <strong>${dados.nome_do_registrado || '___'}</strong>.</p>
+                        <p class="mb-2">O ato foi devidamente consumado no dia <strong>${dados.data_de_nascimento || '___'}</strong>, na área jurisdicional de <span>${dados.cidade_de_nascimento || 'Meta City Core'}</span>, sob o número de registro geral de matrícula institutional <code>${dados.matricula_do_registro || 'Pendente'}</code>.</p>
+                        
+                        <div class="mt-3 bg-slate-50/90 p-4 rounded border border-slate-200 text-xs font-sans text-slate-700 space-y-3 shadow-inner">
+                            <div class="grid grid-cols-1 md:grid-cols-12 gap-2 border-b border-slate-200/60 pb-2 items-center">
+                                <div class="md:col-span-6">
+                                    <strong class="text-slate-400 uppercase text-[9px] tracking-wider block">Pai:</strong>
+                                    <span class="text-sm font-semibold text-slate-800">${dados.pai || 'Não Consta'}</span>
+                                </div>
+                                <div class="md:col-span-6 md:text-right md:border-l md:border-slate-200/60 md:pl-4">
+                                    <strong class="text-slate-400 uppercase text-[9px] tracking-wider block md:text-right">Avós Paternos:</strong>
+                                    <span class="font-medium text-slate-700">${dados.avos_paternos || 'Não Consta'}</span>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-12 gap-2 items-center pt-0.5">
+                                <div class="md:col-span-6">
+                                    <strong class="text-slate-400 uppercase text-[9px] tracking-wider block">Mãe:</strong>
+                                    <span class="text-sm font-semibold text-slate-800">${dados.mae || 'Não Consta'}</span>
+                                </div>
+                                <div class="md:col-span-6 md:text-right md:border-l md:border-slate-200/60 md:pl-4">
+                                    <strong class="text-slate-400 uppercase text-[9px] tracking-wider block md:text-right">Avós Maternos:</strong>
+                                    <span class="font-medium text-slate-700">${dados.avos_maternos || 'Não Consta'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case 'casamento':
+                    htmlResultado = `
+                        <h4 class="text-center font-cinzel font-bold text-base text-slate-900 tracking-wider mb-3">CERTIDÃO DE CASAMENTO</h4>
+                        <p class="indent-8 mb-2">FAZ-SABER que sob as ordenações civis deste Tribunal e na conformidade das leis regulamentares de Meta City, uniram-se em matrimônio legal o(a) Sr(a). <strong>${dados.conjuge_um || '___'}</strong> e o(a) Sr(a). <strong>${dados.conjuge_dois || '___'}</strong>.</p>
+                        <p class="mb-2">A união jurídica e vinculação de estado civil foi solenizada em data de <strong>${dados.data_da_celebracao || '___'}</strong> sob o regime de bens determinado como <span class="italic text-slate-900 font-semibold">${dados.regime_de_bens || 'Não Declarado'}</span>, perante as autoridades competentes.</p>
+                        <p class="text-xs text-slate-600 bg-slate-100/90 p-3 rounded border border-slate-200 mt-3"><strong>Testemunhas Instrumentais do Ato:</strong> ${dados.testemunhas_oficiais || 'Sem testemunhas registrada.'}</p>
+                    `;
+                    break;
+                case 'adocao':
+                    htmlResultado = `
+                        <h4 class="text-center font-cinzel font-bold text-base text-slate-900 tracking-wider mb-3">CERTIFICADO DE ADOÇÃO</h4>
+                        <p class="indent-8 mb-2">O SUPREMO TRIBUNAL META CITY, por via da sua Vara de Relações de Família e Sucessões, declara homologada a transição familiar e concessão legal de filiação de <strong>${dados.nome_adotado || '___'}</strong>, o qual passa a dispor de plenos direitos familiares sob a responsabilidade de <strong>${dados.adotante_responsavel || '___'}</strong>.</p>
+                        <p class="mb-2">Esta decisão foi proferida por sentença judicial em <strong>${dados.data_da_sentenca_judicial || '___'}</strong> pelo magistrado <span>${dados.magistrado_proferidor || 'Do Juízo'}</span> nos autos do processo de número <code>${dados.numero_do_processo_mae || 'Restrito'}</code>.</p>
+                    `;
+                    break;
+                case 'cnpj':
+                    htmlResultado = `
+                        <h4 class="text-center font-cinzel font-bold text-base text-slate-900 tracking-wider mb-3">CNPJ</h4>
+                        <div class="border-2 border-slate-300 rounded p-4 font-sans text-xs bg-slate-50/95 space-y-3 mt-1">
+                            <div class="flex justify-between border-b pb-2 border-slate-200">
+                                <div><strong class="text-slate-500 uppercase text-[9px] block">Número do CNPJ</strong><span class="text-sm font-bold text-blue-900">${dados.inscricao_cnpj || '00.000.000/0001-00'}</span></div>
+                                <div class="text-right"><strong class="text-slate-500 uppercase text-[9px] block">Abertura Comercial</strong><span class="font-bold">${dados.data_de_abertura_oficial || '___'}</span></div>
+                            </div>
+                            <div class="border-b border-slate-200 pb-2">
+                                <strong class="text-slate-500 uppercase text-[9px] block">Razão Social / Nome de Registro</strong>
+                                <span class="text-sm font-bold text-slate-900">${dados.razao_social || '___'}</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 border-b border-slate-200 pb-2">
+                                <div><strong class="text-slate-500 uppercase text-[9px] block">Nome Fantasia</strong><span>${dados.nome_fantasia || '---'}</span></div>
+                                <div><strong class="text-slate-500 uppercase text-[9px] block">Capital Declarado</strong><span class="text-emerald-700 font-bold">${dados.capital_social_declarado || 'R$ 0,00'}</span></div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-12 gap-2 border-b border-slate-200 pb-2 items-center">
+                                <div class="md:col-span-8">
+                                    <strong class="text-slate-500 uppercase text-[9px] block">Endereço Comercial</strong>
+                                    <span class="text-slate-700 font-medium">${dados.endereco || '---'}</span>
+                                </div>
+                                <div class="md:col-span-4 md:text-right md:border-l md:border-slate-200/60 md:pl-2">
+                                    <strong class="text-slate-500 uppercase text-[9px] block md:text-right">Telefone</strong>
+                                    <span class="text-slate-700 font-semibold">${dados.telefone || '---'}</span>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 border-b border-slate-200 pb-2">
+                                <div><strong class="text-slate-500 uppercase text-[9px] block">Proprietário Legal</strong><span class="font-semibold text-slate-800">${dados.proprietario || '---'}</span></div>
+                                <div><strong class="text-slate-500 uppercase text-[9px] block">Porte da Empresa</strong><span class="font-semibold text-slate-800">${dados.porte_da_empresa || '---'}</span></div>
+                            </div>
+                            <div>
+                                <strong class="text-slate-500 uppercase text-[9px] block">Quadro de Sócios Administradores</strong>
+                                <span class="text-slate-700 font-medium">${dados.socios || 'Nenhum sócio declarado.'}</span>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case 'porte_arma':
+                    htmlResultado = `
+                        <div class="-mt-4 space-y-3">
+                            <h4 class="text-center font-cinzel font-bold text-base text-red-950 tracking-wider mb-2">PORTE DE ARMA LEVE</h4>
+                            <p class="indent-8 text-sm">Fica certificado e autorizado, sob o aval de segurança do Supremo Tribunal, que o cidadão qualificado <strong>${dados.nome_do_titular || '___'}</strong>, inscrito no CPF sob o número <span>${dados.documento_cpf || '___'}</span>, possui o direito de porte e trânsito defensivo.</p>
+                            
+                            <p class="text-xs text-slate-700 text-justify leading-relaxed px-1 border-l border-slate-300 pl-3">
+                                A presente autorização não produzirá efeitos enquanto não forem apresentados e aprovados o laudo psicológico e a revisão policial.
+                            </p>
+                            <p class="text-xs text-slate-700 text-justify leading-relaxed px-1 border-l border-slate-300 pl-3">
+                                O porte deverá observar as normas vigentes de Meta City, sendo vedado o uso indevido da arma ou sua utilização fora das condições autorizadas.
+                            </p>
+                            <p class="text-xs text-slate-700 text-justify leading-relaxed px-1 border-l border-slate-300 pl-3">
+                                A autorização poderá ser suspensa ou revogada em caso de descumprimento das condições estabelecidas.
+                            </p>
+
+                            <div class="bg-slate-900 text-amber-400 p-4 rounded border border-amber-800/40 font-mono text-xs space-y-1.5 shadow-inner">
+                                <p class="text-center text-slate-500 font-bold text-[9px] uppercase border-b border-slate-800 pb-1.5">Especificações Técnicas de Defesa</p>
+                                <p><strong>ARMAMENTO:</strong> ${dados.tipo_de_armamento || 'Pistola Semiautomática'}</p>
+                                <p><strong>CALIBRE RECONHECIDO:</strong> <span class="text-white font-bold">${dados.calibre_permitido || 'M-19'}</span></p>
+                                <p><strong>ANTECEDENTES CRIMINAIS:</strong> <span class="text-white">${dados.antecedentes_criminais || 'ficha limpa'}</span></p>
+                            </div>
+                            <p class="text-xs text-red-700 font-bold text-center italic mt-1">Documento com autorização de validade estendida até: ${dados.validade_da_licenca || '___'}.</p>
+                        </div>
+                    `;
+                    break;
+                case 'patente_nome':
+                    let listaBeneficiadosHtml = '<span class="text-slate-400 italic text-xs">Nenhum beneficiado nominal declarado...</span>';
+                    if (dados.beneficiados) {
+                        const lista = dados.beneficiados.split(',').map(n => n.trim());
+                        listaBeneficiadosHtml = `<ol class="list-decimal list-inside space-y-0.5 text-slate-700 font-medium text-xs">
+                            ${lista.map(beneficiado => `<li>${beneficiado}</li>`).join('')}
+                        </ol>`;
+                    }
+
+                    htmlResultado = `
+                        <h4 class="text-center font-cinzel font-bold text-base text-slate-900 tracking-wider mb-3">PATENTE DE NOME</h4>
+                        <p class="indent-8 mb-2">O Conselho de Marcas do Supremo Tribunal certifica a exclusividade e registro patentário do termo nominativo de mercado listado abaixo:</p>
+                        <div class="text-center py-2.5 my-3 bg-slate-100/90 border border-slate-300 rounded font-mono text-base font-bold text-slate-900 tracking-widest shadow-inner">
+                            "${dados.nome_da_marca_patenteada || '___'}"
+                        </div>
+                        <p class="mb-3">A patente foi concessa em favor de <strong>${dados.titular_do_direito_intelectual || '___'}</strong>, sob o número de protocolo industrial <code>${dados.numero_do_processo_de_deposito || '___'}</code> em data de <span>${dados.data_de_concessao_legal || '___'}</span>.</p>
+                        
+                        <div class="mt-4 bg-slate-50/95 p-4 rounded border border-slate-200 shadow-inner">
+                            <strong class="text-slate-500 uppercase text-[9px] font-sans tracking-wider block mb-2">Membros Beneficiados Co-Detentores:</strong>
+                            ${listaBeneficiadosHtml}
+                        </div>
+                    `;
+                    break;
+            }
+
+            caixaTexto.innerHTML = htmlResultado;
+            exibirAlerta("Ato do Supremo Tribunal compilado com sucesso!", "bg-emerald-950 text-emerald-400 border border-emerald-900");
+
+            if (window.innerWidth < 1024) {
+                areaDocumento.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        // Ouvintes de Evento Administrativos
+        dadosInput.addEventListener('input', atualizarPainelFeedback);
+        
+        servicoSelect.addEventListener('change', () => {
+            dadosInput.value = '';
+            fundoUpload.value = '';
+            atualizarPainelFeedback();
+            compilarDocumentoFinal();
+        });
+
+        fundoUpload.addEventListener('change', function(evento) {
+            const arquivo = evento.target.files[0];
+            const servico = servicoSelect.value;
+            if (arquivo) {
+                const leitor = new FileReader();
+                leitor.onload = function(e) {
+                    fundosCustomizadosPorServico[servico] = e.target.result;
+                    compilarDocumentoFinal();
+                    exibirAlerta(`Fundo adicionado para: ${servicoSelect.options[servicoSelect.selectedIndex].text}`, "bg-emerald-950 text-emerald-400 border border-emerald-900");
+                };
+                leitor.readAsDataURL(arquivo);
+            }
+        });
+
+        btnExemplo.addEventListener('click', () => {
+            dadosInput.value = exemplosDados[servicoSelect.value];
+            atualizarPainelFeedback();
+            compilarDocumentoFinal();
+        });
+
+        btnEnviar.addEventListener('click', compilarDocumentoFinal);
+
+        window.onload = () => {
+            dadosInput.value = exemplosDados.nascimento;
+            atualizarPainelFeedback();
+            compilarDocumentoFinal();
+        };
+    </script>
+</body>
+</html>
